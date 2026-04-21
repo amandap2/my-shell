@@ -1,3 +1,11 @@
+/*
+stdlib.h: responsible for memory allocation/deallocation manipulation
+Example: NULL: indicates that the pointer its not poiting to any place in the memory
+
+string.h: string manipulation
+*/
+
+
 #include <stdio.h> //standard input-output header
 #include <stdlib.h>
 #include <string.h>
@@ -82,7 +90,91 @@ void parseInput(char *input, char **args){
 }
 
 void executePipe(char **args1, char **args2){
+    int pipefd[2];
+    pipe(pipefd); //create pipe
 
+    pid_t p1 = fork();
+
+    if(p1 == 0){
+        //first child process (left command)
+        dup2(pipefd[1], STDOUT_FILENO); //redirect stdout to pipe write end
+        close(pipefd[0]); // close unused read end
+        close(pipefd[1]);
+
+        execvp(args1[0], args1); //execute first command
+        perror("pipe cmd1 failed");
+        exit(1);
+    }
+
+    pid_t p2 = fork();
+
+    if(p2 == 0){
+        //second child process (right command)
+        dup2(pipefd[0], STDIN_FILENO); //redirect stdin to pipe read end
+        close(pipefd[1]); //close unused write end
+        close(pipefd[0]);
+
+        execvp(args2[0], args2); //execute second command
+        perror("Pipe cmd2 failed");
+        exit(1);
+    }
+
+    //parent process closes both ends of pipe
+    close(pipefd[0]);
+    close(pipefd[1]);
+
+    //wait for both child processes to complete
+    wait(NULL);
+    wait(NULL);
+}
+
+int handleBuiltIn(char **args){
+    if (args[0] == NULL) return 1; //empty command
+
+    //exit command
+    if(strcmp(args[0], "exit") == 0){
+        printf("Exiting shell...\n");
+        exit(0);
+    }
+
+    //change directory command
+    if(strcmp(args[0], "cd") == 0){
+        if(args[1] == NULL){
+            printf("Expected argument to \"cd\"\n");
+        } else{
+            //change directory and handle error
+            if(chdir(args[1]) != 0){
+                perror("cd failed");
+            }
+        }
+        return 1;
+    }
+
+    //help command
+    if(strcmp(args[0], "help") == 0){
+        printf("\nSimple Shell Help\n");
+        printf("Built-in commands:\n");
+        printf(" cd <dir>\n exit\n help\n");
+        printf("Supports pipes: ls | grep txt\n");
+        return 1;
+    }
+
+    return 0; //not a built-in command
+}
+
+void executeCommand(char **args){
+    pid_t pid = fork(); //create a child process
+
+    if(pid == 0){
+        //child process executes command
+        if(execvp(args[0], args) < 0){
+            perror("command failed"); //if execution fails
+        }
+        exit(1);
+    } else{
+        //parent process waits for child to finish
+        wait(NULL);
+    }
 }
 
 int main(){
@@ -110,9 +202,9 @@ int main(){
             parseInput(input, args1); //parse normal command
 
             //handle built-in commands first
-            // if(handleBuiltIn(args1)) continue;
+            if(handleBuiltIn(args1)) continue;
 
-            // executeCommand(args1); //execute external command
+            executeCommand(args1); //execute external command
         }
     }
 
