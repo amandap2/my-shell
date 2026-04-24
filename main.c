@@ -15,6 +15,10 @@ string.h: string manipulation
 #define MAX_INPUT 1024 // MAX length user input
 #define MAX_ARGS 64    // MAX number of arguments
 
+void runRaspberry(){
+    system("ssh raspberry 'sudo /usr/local/bin/start-housebot.sh'");
+}
+
 void printBanner(){
     printf(
         "\n************************************************\n\n"
@@ -30,7 +34,7 @@ void printBanner(){
 }
 
 void printDir(){
-    char cwd[1024];
+    char cwd[1024]; //cwd = current working directory - creates a buffer (memory used to store temporary data)
 
     //get current working directory
     //if it fails, print error and return
@@ -156,6 +160,12 @@ int handleBuiltIn(char **args){
         printf("Built-in commands:\n");
         printf(" cd <dir>\n exit\n help\n");
         printf("Supports pipes: ls | grep txt\n");
+        return 1;
+    }
+
+    //rasp command
+    if(strcmp(args[0], "rasp") == 0){
+        runRaspberry();
         return 1;
     }
 
